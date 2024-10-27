@@ -9,6 +9,8 @@ import adsk, re
 from xml.etree.ElementTree import Element, SubElement
 from ..utils import utils
 
+import math
+
 class Link:
 
     def __init__(self, name, xyz, center_of_mass, repo, mass, inertia_tensor,stl_transform):
@@ -55,6 +57,19 @@ class Link:
         link = Element('link')
         link.attrib = {'name':self.name}
         
+        m11 = self.stl_transform.getCell(0,0)
+        m12 = self.stl_transform.getCell(0,1)
+        m13 = self.stl_transform.getCell(0,2)
+        m21 = self.stl_transform.getCell(1,0)
+        m22 = self.stl_transform.getCell(1,1)
+        m23 = self.stl_transform.getCell(1,2)
+        m31 = self.stl_transform.getCell(2,0)
+        m32 = self.stl_transform.getCell(2,1)
+        m33 = self.stl_transform.getCell(2,2)
+        
+        roll = math.atan2(m32, m33)
+        pitch = math.atan2(-m31, math.sqrt(m32 ** 2 + m33 ** 2))
+        yaw = math.atan2(m21, m11)
         #inertial
         inertial = SubElement(link, 'inertial')
         origin_i = SubElement(inertial, 'origin')
@@ -70,7 +85,7 @@ class Link:
         # visual
         visual = SubElement(link, 'visual')
         origin_v = SubElement(visual, 'origin')
-        origin_v.attrib = {'xyz':' '.join([str(_) for _ in self.xyz + list(self.stl_transform.translation.asArray())]), 'rpy':'0 0 0'}
+        origin_v.attrib = {'xyz':' '.join([str(a + b/100) for a, b in zip(self.xyz, self.stl_transform.translation.asArray())]),'rpy':str(roll) + " " + str(pitch) + " " + str(yaw)}
         geometry_v = SubElement(visual, 'geometry')
         mesh_v = SubElement(geometry_v, 'mesh')
         mesh_v.attrib = {'filename':'file://' + '$(find %s)' % self.pkg_name + self.remain_repo_addr + self.name + '.stl','scale':'0.001 0.001 0.001'}
@@ -80,7 +95,7 @@ class Link:
         # collision
         collision = SubElement(link, 'collision')
         origin_c = SubElement(collision, 'origin')
-        origin_c.attrib = {'xyz':' '.join([str(_) for _ in self.xyz + list(self.stl_transform.translation.asArray())]), 'rpy':'0 0 0'}
+        origin_c.attrib = {'xyz':' '.join([str(a + b/100) for a, b in zip(self.xyz, self.stl_transform.translation.asArray())]), 'rpy':str(roll) + " " + str(pitch) + " " + str(yaw)}
         geometry_c = SubElement(collision, 'geometry')
         mesh_c = SubElement(geometry_c, 'mesh')
         mesh_c.attrib = {'filename':'file://' + '$(find %s)' % self.pkg_name + self.remain_repo_addr + self.name + '.stl','scale':'0.001 0.001 0.001'}
@@ -130,10 +145,8 @@ def make_inertial_dict(root, msg):
             inertial_dict['base_link'] = occs_dict
         else:
             inertial_dict[re.sub('[ :()]', '_', occs.name)] = occs_dict
-
-        #translation_vector = adsk.core.Vector3D(occs.transform.translation.x, occs.transform.translation.y, occs.transform.translation.z)
         
-        #msg += "Transform Type:" + str(type(occs.transform.translation.asArray())) + str(occs.transform.translation.asArray()) + "\n"
+        #msg += "Transform Type:" + str(occs.transform.translation.asArray()) + "\n"
         
         
         
